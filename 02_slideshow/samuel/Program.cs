@@ -11,11 +11,15 @@ namespace SlideShow
     {
         static void Main(string[] args)
         {
-            new SlideShow("in\\c_memorable_moments.txt").Solve();
+            //new SlideShow("in\\c_memorable_moments.txt").Solve();
 
-            return;
+            var score = 0;
+            //return;
             foreach (var file in Directory.GetFiles("in"))
-                new SlideShow(file).Solve();
+                score += new SlideShow(file).Solve();
+
+            Console.WriteLine($"Total: {score}");
+            Console.ReadKey();
         }
     }
 
@@ -28,7 +32,7 @@ namespace SlideShow
             Filename = filename;
         }
 
-        public void Solve()
+        public int Solve()
         {
             var random = new Random(1);
 
@@ -53,7 +57,7 @@ namespace SlideShow
 
             pictures = pictures.Where(p => !p.IsVertical).ToList();
 
-            var buckets = CreateBuckets(pictures, 10).ToList();
+            var buckets = CreateBuckets(pictures, 10000);
             var score = 0;
             var link = new HashSet<int>();
 
@@ -63,6 +67,9 @@ namespace SlideShow
                 score += bucketScore;
                 link = tail;
             }
+
+            Console.WriteLine($"{Filename}: {score}");
+            return score;
         }
 
         private (int score, HashSet<int>) SolveBucket(Bucket bucket, HashSet<int> head)
@@ -101,7 +108,7 @@ namespace SlideShow
 
         private IEnumerable<Bucket> CreateBuckets(IList<Picture> pictures, int bucketSize)
         {
-            for (int i = 0; i < pictures.Count; i++)
+            for (int i = 0; i < pictures.Count;)
             {
                 var bucket = Cache(() =>
                 {
@@ -112,9 +119,11 @@ namespace SlideShow
                         Pictures = bucketPictures,
                         AdjacencyMatrix = ExtractScores(bucketPictures)
                     };
-                }, $"bucket_{i/bucketSize}");
+                }, $"bucket_{i/bucketSize}_{bucketSize}");
 
                 yield return bucket;
+
+                i += bucketSize;
             }
         }
 
