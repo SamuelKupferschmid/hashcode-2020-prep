@@ -30,27 +30,118 @@ namespace SlideShow
 
         public void Solve()
         {
-            var lineSplits = File.ReadLines(Filename).Skip(1).Select(l => l.Split(" ")).ToList();
+            var random = new Random(1);
 
-            short index = 0;
-            var tags = new Dictionary<string, int>();
-            foreach (var tag in lineSplits.SelectMany(s => s.Skip(2)).Distinct())
+            var pictures = Cache(() =>
             {
-                tags.Add(tag, index++);
+                var lineSplits = File.ReadLines(Filename).Skip(1).Select(l => l.Split(" ")).ToList();
+                short index = 0;
+                var tags = new Dictionary<string, int>();
+                foreach (var tag in lineSplits.SelectMany(s => s.Skip(2)).Distinct())
+                {
+                    tags.Add(tag, index++);
+                }
+
+                return lineSplits
+                    .Select((splits, i) => new Picture
+                    {
+                        Index = i,
+                        IsVertical = splits[0] == "V",
+                        Tags = splits.Skip(2).Select(s => tags[s]).ToHashSet(),
+                    }).ToList();
+            }, "pictures");
+
+            pictures = pictures.Where(p => !p.IsVertical).ToList();
+
+            var buckets = CreateBuckets(pictures, 10).ToList();
+            var score = 0;
+            var link = new HashSet<int>();
+
+            foreach (var bucket in buckets)
+            {
+                var (bucketScore, tail) = SolveBucket(bucket, link);
+                score += bucketScore;
+                link = tail;
+            }
+        }
+
+        private (int score, HashSet<int>) SolveBucket(Bucket bucket, HashSet<int> head)
+        {
+            var visited = new HashSet<int>();
+
+            var linkScores = bucket.Pictures.Select(p => (int)GetScore(p.Tags, head)).ToList();
+
+            var (current, score) = linkScores.ArgMax();
+            visited.Add(current);
+
+            while (visited.Count < bucket.Pictures.Count)
+            {
+                
+                var scores = bucket.AdjacencyMatrix[current];
+
+                var maxVal = -1;
+                var maxIndex = -1;
+
+                for (int i = 0; i < scores.Length; i++)
+                {
+                    if (i != current && !visited.Contains(i) && scores[i] > maxVal)
+                    {
+                        maxVal = scores[i];
+                        maxIndex = i;
+                    }
+                }
+
+                score += maxVal;
+                current = maxIndex;
+                visited.Add(current);
             }
 
-            var pictures = lineSplits
-                .Select((splits, i) => new Picture
+            return (score, bucket.Pictures[current].Tags);
+        }
+
+        private IEnumerable<Bucket> CreateBuckets(IList<Picture> pictures, int bucketSize)
+        {
+            for (int i = 0; i < pictures.Count; i++)
+            {
+                var bucket = Cache(() =>
                 {
-                    Index = i,
-                    IsVertical = splits[0] == "V",
-                    Tags = splits.Skip(2).Select(s => tags[s]).ToHashSet(),
-                }).ToList();
+                    var bucketPictures = pictures.Skip(i).Take(bucketSize).ToList();
 
-            var verticalPictures = pictures.Where(p => p.IsVertical).ToList();
-            var horizontalPictures = pictures.Where(p => !p.IsVertical).ToList();
+                    return new Bucket
+                    {
+                        Pictures = bucketPictures,
+                        AdjacencyMatrix = ExtractScores(bucketPictures)
+                    };
+                }, $"bucket_{i/bucketSize}");
 
-            var verticalTags = Cache(() =>
+                yield return bucket;
+            }
+        }
+
+        private byte[][] ExtractScores(List<Picture> pictures)
+        {
+            var s = new byte[pictures.Count][];
+            for (int i = 0; i < pictures.Count; i++)
+            {
+                s[i] = new byte[pictures.Count];
+            }
+
+            Parallel.For(0, s.Length, i =>
+            {
+                for (int j = 0; j < i; j++)
+                {
+                    var score = GetScore(pictures[i].Tags, pictures[j].Tags);
+                    s[i][j] = score;
+                    s[j][i] = score;
+                }
+            });
+
+            return s;
+        }
+
+        private int[][][] ExtractVerticalTags(List<Picture> verticalPictures)
+        {
+            return Cache(() =>
             {
                 var t = new int[verticalPictures.Count][][];
 
@@ -68,55 +159,15 @@ namespace SlideShow
 
                 return t;
             }, "tags");
-
-            var scores = Cache(() =>
-            {
-                var s = new byte[horizontalPictures.Count][];
-
-                Parallel.For(0, s.Length, i =>
-                {
-                    s[i] = new byte[i];
-                    for (int j = 0; j < i; j++)
-                    {
-                        s[i][j] = GetScore(horizontalPictures[i].Tags, horizontalPictures[j].Tags);
-                    }
-                });
-
-                return s;
-            }, "score");
-
-            for (int i = scores.Length - 1; i >= 0; i--)
-            {
-                if (scores[i].All(s => s == 0))
-                {
-                    var maxScore = 0;
-                    var maxRow = 0;
-                    var maxCol = 0;
-
-                    for (int row = 0; row < verticalTags.Length; row++)
-                    {
-                        for (int col = 0; col < row; col++)
-                        {
-                            var score = GetScore(horizontalPictures[i].Tags, new HashSet<int>(verticalTags[row][col]));
-                            if (score > maxScore)
-                            {
-                                maxScore = score;
-                                maxRow = row;
-                                maxCol = col;
-                            }
-                        }
-                    }
-                    
-                }
-            }
         }
 
         private T Cache<T>(Func<T> func, string name)
         {
+            Directory.CreateDirectory(Path.GetFileNameWithoutExtension(Filename));
             var formatter = new BinaryFormatter();
             T result = default(T);
 
-            name = $"{Path.GetFileNameWithoutExtension(Filename)}_{name}";
+            name = $"{Path.GetFileNameWithoutExtension(Filename)}/{name}";
 
             if (File.Exists(name))
             {
@@ -147,6 +198,13 @@ namespace SlideShow
             var right = (byte) tags2.Except(tags1).Count();
 
             return new[] {intersection, left, right}.Min();
+        }
+
+        [Serializable]
+        public class Bucket
+        {
+            public List<Picture> Pictures { get; set; }
+            public byte[][] AdjacencyMatrix;
         }
 
         [Serializable]

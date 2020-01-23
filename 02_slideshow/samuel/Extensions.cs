@@ -10,7 +10,7 @@ namespace SlideShow
         where T : IComparable<T>
         {
             int index = 0;
-            int maxIndex = -1;
+            int maxIndex = 0;
             T maxValue = default(T);
 
             foreach (var value in values)
