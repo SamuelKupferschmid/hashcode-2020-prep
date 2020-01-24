@@ -55,19 +55,24 @@ namespace SlideShow
                     }).OrderBy(_ => random.Next()).ToList();
             }, "pictures");
 
-            var buckets = CreateBuckets(pictures, 5000, 20);
+            var buckets = CreateBuckets(pictures, 20000, 10);
             var score = 0;
             var link = new HashSet<int>();
 
             var slides = new List<string>();
 
+            Console.WriteLine();
+
             foreach (var bucket in buckets)
             {
                 var (bucketScore, bucketSlides, tail) = SolveBucket(bucket, link);
                 score += bucketScore;
+                Console.Write("\r" + score  + new string(' ',20));
                 link = tail;
                 slides.AddRange(bucketSlides);
             }
+
+            Console.WriteLine();
 
             slides = new[] {$"score -> {score}", slides.Count.ToString()}.Concat(slides).ToList();
 
