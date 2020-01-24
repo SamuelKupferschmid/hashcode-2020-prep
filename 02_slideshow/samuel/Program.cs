@@ -52,38 +52,72 @@ namespace SlideShow
                         Index = i,
                         IsVertical = splits[0] == "V",
                         Tags = splits.Skip(2).Select(s => tags[s]).ToHashSet(),
-                    }).ToList();
+                    }).OrderBy(_ => random.Next()).ToList();
             }, "pictures");
 
-            pictures = pictures.Where(p => !p.IsVertical).ToList();
-
-            var buckets = CreateBuckets(pictures, 10000);
+            var buckets = CreateBuckets(pictures, 5000, 20);
             var score = 0;
             var link = new HashSet<int>();
 
+            var slides = new List<string>();
+
             foreach (var bucket in buckets)
             {
-                var (bucketScore, tail) = SolveBucket(bucket, link);
+                var (bucketScore, bucketSlides, tail) = SolveBucket(bucket, link);
                 score += bucketScore;
                 link = tail;
+                slides.AddRange(bucketSlides);
             }
+
+            slides = new[] {$"score -> {score}", slides.Count.ToString()}.Concat(slides).ToList();
+
+
+            File.WriteAllLines(Path.GetFileNameWithoutExtension(Filename) + ".txt", slides);
 
             Console.WriteLine($"{Filename}: {score}");
             return score;
         }
 
-        private (int score, HashSet<int>) SolveBucket(Bucket bucket, HashSet<int> head)
+        private (int score, IList<string> slides, HashSet<int> tail) SolveBucket(Bucket bucket, HashSet<int> head)
         {
+            var slides = new List<string>();
             var visited = new HashSet<int>();
 
-            var linkScores = bucket.Pictures.Select(p => (int)GetScore(p.Tags, head)).ToList();
+            var allSlides = bucket.GetSlides().ToList();
+
+            void visit(int id)
+            {
+                if (allSlides[id] is CombinedPicture slide)
+                {
+                    for (int i = bucket.HorizontalSlides.Count; i < allSlides.Count; i++)
+                    {
+                        if (allSlides[i] is CombinedPicture target)
+                        {
+                            if (new[] {slide.Left, slide.Right, target.Left, target.Right}.Distinct().Count() < 4)
+                            {
+                                visited.Add(i);
+                            }
+                        }
+                    }
+
+                    slides.Add($"{slide.Left.Index} {slide.Right.Index}");
+                }
+                else
+                {
+                    slides.Add(allSlides[id].Index.ToString());
+                }
+
+                visited.Add(id);
+            }
+
+
+            var linkScores = allSlides.Select(p => (int) GetScore(p is CombinedPicture vSlide ? vSlide.Left.Tags : p.Tags, head)).ToList();
 
             var (current, score) = linkScores.ArgMax();
-            visited.Add(current);
+            visit(current);
 
-            while (visited.Count < bucket.Pictures.Count)
+            while (visited.Count < allSlides.Count)
             {
-                
                 var scores = bucket.AdjacencyMatrix[current];
 
                 var maxVal = -1;
@@ -100,30 +134,64 @@ namespace SlideShow
 
                 score += maxVal;
                 current = maxIndex;
-                visited.Add(current);
+                visit(current);
             }
 
-            return (score, bucket.Pictures[current].Tags);
+            var tail = allSlides[current];
+
+            return (score, slides, tail is CombinedPicture vSlide ? vSlide.Right.Tags : tail.Tags);
         }
 
-        private IEnumerable<Bucket> CreateBuckets(IList<Picture> pictures, int bucketSize)
+        private IEnumerable<Bucket> CreateBuckets(IList<Picture> pictures, int horizontalSize, int verticalSize)
         {
-            for (int i = 0; i < pictures.Count;)
+            var hPics = pictures.Where(p => !p.IsVertical).ToList();
+            var vPics = pictures.Where(p => p.IsVertical).ToList();
+
+            int bucketCount = (int) Math.Max(Math.Ceiling((double) hPics.Count / horizontalSize),
+                Math.Ceiling((double) vPics.Count / verticalSize));
+
+            for (int i = 0; i < bucketCount; i++)
             {
                 var bucket = Cache(() =>
                 {
-                    var bucketPictures = pictures.Skip(i).Take(bucketSize).ToList();
+                    var hIndex = i * horizontalSize;
+                    var vIndex = i * verticalSize;
+
+                    var hSlides = hPics.Skip(hIndex).Take(horizontalSize).ToList();
+                    var vPictures = vPics.Skip(vIndex).Take(verticalSize).ToList();
+
+                    var vSlides = new List<CombinedPicture>();
+
+                    for (int i = 0; i < vPictures.Count; i++)
+                    {
+                        for (int j = i + 1; j < vPictures.Count; j++)
+                        {
+                            var pic1 = vPictures[i];
+                            var pic2 = vPictures[j];
+                            vSlides.Add(new CombinedPicture
+                            {
+                                Index = -1,
+                                Left = pic1,
+                                Right = pic2,
+                            });
+                            vSlides.Add(new CombinedPicture
+                            {
+                                Index = -1,
+                                Left = pic2,
+                                Right = pic1,
+                            });
+                        }
+                    }
 
                     return new Bucket
                     {
-                        Pictures = bucketPictures,
-                        AdjacencyMatrix = ExtractScores(bucketPictures)
+                        HorizontalSlides = hSlides,
+                        VerticalSlides = vSlides,
+                        AdjacencyMatrix = ExtractScores(hSlides.Concat(vSlides).ToList())
                     };
-                }, $"bucket_{i/bucketSize}_{bucketSize}");
+                }, $"bucket_{i}_{horizontalSize}_{verticalSize}");
 
                 yield return bucket;
-
-                i += bucketSize;
             }
         }
 
@@ -139,35 +207,14 @@ namespace SlideShow
             {
                 for (int j = 0; j < i; j++)
                 {
-                    var score = GetScore(pictures[i].Tags, pictures[j].Tags);
-                    s[i][j] = score;
-                    s[j][i] = score;
+                    var leftTag = pictures[i] is CombinedPicture p ? p.Left.Tags : pictures[i].Tags;
+                    var rightTag = pictures[j] is CombinedPicture p2 ? p2.Right.Tags : pictures[j].Tags;
+                    s[i][j] = GetScore(leftTag, rightTag);
+                    s[j][i] = GetScore(rightTag, leftTag);
                 }
             });
 
             return s;
-        }
-
-        private int[][][] ExtractVerticalTags(List<Picture> verticalPictures)
-        {
-            return Cache(() =>
-            {
-                var t = new int[verticalPictures.Count][][];
-
-                Parallel.For(0, t.Length, i =>
-                {
-                    t[i] = new int[i][];
-                    for (int j = 0; j < i; j++)
-                    {
-                        var set = new HashSet<int>(verticalPictures[i].Tags);
-                        set.UnionWith(verticalPictures[j].Tags);
-
-                        t[i][j] = set.ToArray();
-                    }
-                });
-
-                return t;
-            }, "tags");
         }
 
         private T Cache<T>(Func<T> func, string name)
@@ -185,7 +232,10 @@ namespace SlideShow
                 {
                     result = (T) formatter.Deserialize(s);
                     return result;
-                } catch { }
+                }
+                catch
+                {
+                }
             }
 
             result = func();
@@ -212,7 +262,11 @@ namespace SlideShow
         [Serializable]
         public class Bucket
         {
-            public List<Picture> Pictures { get; set; }
+            public List<Picture> HorizontalSlides { get; set; }
+            public List<CombinedPicture> VerticalSlides { get; set; }
+
+            public IEnumerable<Picture> GetSlides() => HorizontalSlides.Concat(VerticalSlides);
+
             public byte[][] AdjacencyMatrix;
         }
 
@@ -224,6 +278,13 @@ namespace SlideShow
             public int Index { get; set; }
 
             public HashSet<int> Tags { get; set; }
+        }
+
+        [Serializable]
+        public class CombinedPicture : Picture
+        {
+            public Picture Left { get; set; }
+            public Picture Right { get; set; }
         }
     }
 }
