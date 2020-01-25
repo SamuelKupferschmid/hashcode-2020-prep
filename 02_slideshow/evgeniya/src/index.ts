@@ -1,77 +1,30 @@
 import fs from 'fs'
-import es from 'event-stream'
-import getStream from 'get-stream'
-import { serializable, list, primitive, deserialize } from 'serializr'
 import _ from 'lodash'
+import { readFile, writeTofile, Slide, scale, swap } from './helpers'
 
-class Picture {
-  @serializable idx: number = 0
-  @serializable dir: 'V' | 'H' | undefined = undefined
-  @serializable nOfTags: number = 0
-  @serializable(list(primitive())) tags: string[] = []
-}
-
-class Slide {
-  @serializable idx: number = 0
-  @serializable nOfTags: number = 0
-  @serializable(list(primitive())) tags: string[] = []
-  @serializable pictures: number[] = []
-  used: boolean = false
-
-  constructor (pictures: Picture[], idx: number) {
-    this.tags = pictures.length === 1 ? pictures[0].tags : _.union(pictures[0].tags, pictures[1].tags)
-    this.nOfTags = this.tags.length
-    this.pictures = pictures.map(p => p.idx)
-    this.idx = idx
-  }
-}
-
-async function readFile (filename: string) {
-  let idx = 0
-  let slideIdx = 0
-  let verticalSlidesTmp: Picture[] = []
-  const slides: Slide[] = []
-  const data = fs.createReadStream(filename)
-                  .pipe(es.split())
-                  .pipe(es.mapSync((line: any) => {
-                    const arr = line.split(' ')
-                    if (arr.length !== 1) {
-                      const pic = deserialize(Picture, { idx, dir: arr[0], nOfTags: parseInt(arr[1]), tags: arr.slice(2) })
-                      if (pic.dir === 'V') {
-                        verticalSlidesTmp.push(pic)
-                        if (verticalSlidesTmp.length === 2) {
-                          slides.push(new Slide(verticalSlidesTmp, slideIdx))
-                          verticalSlidesTmp = []
-                          slideIdx += 1
-                        }
-                      } else {
-                        slides.push(new Slide([pic], slideIdx))
-                        slideIdx += 1
-                      }
-                      idx += 1
-                    }
-                  })
-                  .on('error', function(err) {
-                      console.log('Error while reading file.', err);
-                  })
-                  .on('end', function() {
-                      // console.log('Read entire file.')
-                  }))
-
-  await getStream(data)
-  return slides
-}
-
-function writeTofile (output: fs.WriteStream, line: number | Slide) {
-  if (line instanceof Slide) output.write(_.join(line.pictures, ' ') + '\n')
-  else output.write(`${line}\n`)
-}
+let SCORES: any = []
 
 function getScore (tags1: string[], tags2: string[]) {
   const intersection = _.intersection(tags1, tags2).length
   const s0 = _.difference(tags1, tags2).length
   const s1 = _.difference(tags1, tags2).length
   return Math.min(intersection, s0, s1)
+}
+
+function getTotalScore(slideShow: Slide []){
+  let totalScore = 0
+  for (let i = 0; i < slideShow.length - 1; i++) {
+    let idx1 = slideShow[i].idx
+    let idx2 = slideShow[i + 1].idx
+    let score = SCORES.length > idx1 && SCORES[idx1].length > idx2 ? SCORES[idx1][idx2] : 0
+    if (!score) {
+      score = getScore(slideShow[i].tags, slideShow[i + 1].tags)
+      SCORES[idx1][idx2] = score
+      SCORES[idx2][idx1] = score
+    }
+    totalScore += score
+  }
+  return totalScore
 }
 
 async function main (filename: string) {
@@ -81,7 +34,7 @@ async function main (filename: string) {
 
   const tags: {[key: string]: number[]} = {}
   
-  const output = fs.createWriteStream('./out/' + filename.slice(0, -3) + '.out', {
+  const output = fs.createWriteStream('./out/' + filename.slice(0, -3) + 'out', {
     flags: 'a' // 'a' for appending
   })
   writeTofile(output, input.length)
@@ -98,28 +51,150 @@ async function main (filename: string) {
   const slideShow: Slide[] = []
   for (const tag of tagsSorted) {
     const indices = tags[tag]
-    for (const idx of indices) {
-      if (!(input[idx].used)) {
-        slideShow.push(input[idx])
-        input[idx].used = true
-      } 
+    if (indices.length === 1) {
+      continue
+    } else {
+      for (const idx of indices) {
+        if (!(input[idx].used)) {
+          slideShow.push(input[idx])
+          input[idx].used = true
+        } 
+      }
     }
   }
 
-  let totalScore = 0  
-  for (let i = 0; i < slideShow.length - 1; i++) {
-    const score = getScore(slideShow[i].tags, slideShow[i + 1].tags)
-    totalScore += score
-    writeTofile(output, slideShow[i])
+  // let totalScore = 0  
+  // for (let i = 0; i < slideShow.length - 1; i++) {
+  //   const score = getScore(slideShow[i].tags, slideShow[i + 1].tags)
+  //   totalScore += score
+  //   writeTofile(output, slideShow[i])
+  // }
+  // writeTofile(output, slideShow[slideShow.length - 1])
+
+  // console.log(totalScore, slideShow.length, filename)
+  return slideShow
+}
+
+async function main1 (filename: string) {
+  // slides
+  const slideShow: Slide[] = []
+  const slides: Slide[] = await main(filename)
+  for (let i = 0; i < slides.length; i++) {
+    SCORES.push([])
+    for (let j = 0; j < slides.length; j++) {
+      SCORES[i].push(0)
+    }
   }
-  writeTofile(output, slideShow[slideShow.length - 1])
 
-  console.log(totalScore, slideShow.length, filename)
+  // best score
+  let recordScore = 0
+  let bestEver: SlideShow | undefined = undefined
+
+  
+  // population of possible orders
+  let population: SlideShow[] = []
+  const popTotal = 50
+
+  for (let j = 0; j < popTotal; j++) {
+    if (j === 0) {
+      population[0] = new SlideShow(slides.length, slides.map((s, i) => i))
+      for (let i = 1; i < 1000; i++) {
+        population[i] = new SlideShow (slides.length, undefined)
+      }
+    }
+    let minScore = Infinity
+    let maxScore = 0
+    for (let i = 0; i < population.length; i++) {
+    
+      const ss = population[i].slidesOrder.map(p => slides[p])
+      let score = getTotalScore(ss)
+      population[i].score = score
+
+      if (score > recordScore) {
+        recordScore = score
+        bestEver = population[i]
+      }
+
+      if (score > maxScore) {
+        maxScore = score
+      }
+
+      if (score < minScore) { 
+        minScore = score
+      }
+    }
+
+    console.log('maxScore: ', maxScore)    
+    for (let i = 0; i < population.length; i++) {
+      population[i].fitness = population[i].mapFitness(minScore, maxScore)
+    }
+
+    // new population
+    const newPopulation = nextGeneration(population, slides.length)
+    population = newPopulation
+  }
+
+  console.log(bestEver)
 }
 
-const files = fs.readdirSync('./files');
-for (const file of files) {
-  main(file)
+function nextGeneration (population: SlideShow[], slidesLength: number) {
+  const newPopulation = []
+  let count = 0
+  for (let i = 0; i < population.length; i++) {
+    if (population[i].fitness > 0.5) {
+      count += 1
+      newPopulation[i] = new SlideShow(slidesLength, population[i].slidesOrder)
+    } else {
+      newPopulation[i] = new SlideShow(slidesLength, undefined)
+    }
+  }
+  console.log('Passed: ', count)
+  return newPopulation
 }
+
+class SlideShow {
+  slidesOrder: number[] = []
+  score: number = 0
+  fitness: number = 0
+
+  constructor (nOfSlides: number, slidesOrder?: number[]) {
+    if (slidesOrder) {
+      this.slidesOrder = slidesOrder.slice()
+      // if (Math.random() < 0.5) {
+      //   this.slidesOrder = _.shuffle(this.slidesOrder)
+      // }
+      for (let i = 0; i < 200; i++) {
+        const r1 = Math.floor(Math.random() * nOfSlides)
+        const r2 = Math.floor(Math.random() * nOfSlides)
+        swap(this.slidesOrder, r1, r2)
+      }
+    } else {
+      this.slidesOrder = []
+      for (let i = 0; i < nOfSlides; i++) {
+        this.slidesOrder[i] = i
+      }
+  
+      for (let i = 0; i < 100; i++) {
+        this.slidesOrder = _.shuffle(this.slidesOrder)
+      }
+    }
+  }
+
+  mapFitness (minScore: number, maxScore: number) {
+    this.fitness = scale(this.score, minScore, maxScore, 0, 1)
+    return this.fitness
+  }
+
+  normalizeFitness (nOfSlides: number) {
+    this.fitness /= nOfSlides
+  }
+}
+
+main1('c_memorable_moments.txt')
+
+// const files = fs.readdirSync('./files');
+// for (const file of files) {
+//   main(file)
+// }
 
 
