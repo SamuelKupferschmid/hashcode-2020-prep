@@ -15,6 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ShellProgressBar" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\99_libs\samuel\SolutionLibrary\SolutionLibrary.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="in\a_example.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

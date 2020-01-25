@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29509.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlideShow", "SlideShow.csproj", "{88774C15-D2B2-4788-8C0A-86EDC89AEAAF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlideShow", "SlideShow.csproj", "{88774C15-D2B2-4788-8C0A-86EDC89AEAAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolutionLibrary", "..\..\99_libs\samuel\SolutionLibrary\SolutionLibrary.csproj", "{53E8C4E5-E50E-4ECD-8D1E-B6B47B1FF1BA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{88774C15-D2B2-4788-8C0A-86EDC89AEAAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88774C15-D2B2-4788-8C0A-86EDC89AEAAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88774C15-D2B2-4788-8C0A-86EDC89AEAAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53E8C4E5-E50E-4ECD-8D1E-B6B47B1FF1BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53E8C4E5-E50E-4ECD-8D1E-B6B47B1FF1BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53E8C4E5-E50E-4ECD-8D1E-B6B47B1FF1BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53E8C4E5-E50E-4ECD-8D1E-B6B47B1FF1BA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
