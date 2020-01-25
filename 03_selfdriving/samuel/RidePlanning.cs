@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
+using System.Dynamic;
 using System.Linq;
 using SolutionLibrary;
 
@@ -81,10 +81,5 @@ namespace Challenge
 
             return (score, output);
         }
-    }
-
-    public static class Extensions
-    {
-        public static int Distance(this Point a, Point b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
     }
 }

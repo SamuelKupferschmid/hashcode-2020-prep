@@ -21,7 +21,7 @@ namespace SolutionLibrary
         public void RunInteractive()
         {
             var inputFiles = Directory.GetFiles(Path.Combine(_rootPath, "input"));
-
+            var totalMaxScore = 0;
             while (true)
             {
                 Console.WriteLine("Select Dataset:");
@@ -37,17 +37,20 @@ namespace SolutionLibrary
                 {
                     foreach (var file in inputFiles)
                     {
-                        RunDataset(file);
+                        totalMaxScore += RunDataset(file);
                     }
                 }
                 else
                 {
-                    RunDataset(inputFiles[key-1]);
+                    totalMaxScore += RunDataset(inputFiles[key-1]);
                 }
+
+                Console.WriteLine($"Total Max Score: {totalMaxScore:N0}");
+                Console.WriteLine();
             }
         }
 
-        public void RunDataset(string inputFilePath)
+        public int RunDataset(string inputFilePath)
         {
             var solution = new T {Filename = inputFilePath};
             var filename = Path.GetFileName(inputFilePath);
@@ -70,9 +73,11 @@ namespace SolutionLibrary
             var diff = score - maxScore;
             
             Console.ForegroundColor = diff > 0 ? ConsoleColor.Green : ConsoleColor.Red;
-            Console.WriteLine($"score: {score} [{(diff > 0 ? "+" : "-")}{diff}] in {sw.ElapsedMilliseconds / 1000} seconds");
+            Console.WriteLine($"score: {score:N0} [{(diff > 0 ? "+" : "-")}{diff:N0}] in {sw.ElapsedMilliseconds / 1000} seconds");
             Console.WriteLine(new string('=', 50));
             Console.ResetColor();
+
+            return maxScore;
         }
     }
 }
