@@ -90,7 +90,7 @@ namespace Challenge
                         endTime = arrTime + ride.Distance;
 
                         vehicleRides[schedule.VehicleIndex].Add(ride.Index);
-                        progress.Tick(assignedRides.Count);
+                        progress.Tick(assignedRides.Count,score.ToString());
                     }
 
                     var minimalCost = int.MaxValue;
@@ -100,7 +100,8 @@ namespace Challenge
                     {
                         var ride = rides[i];
                         var distance = ride.StartPos.Distance(endPosition);
-                        var buffer = ride.EndTime = ride.Distance;
+
+                        var buffer = ride.EndTime - ride.Distance;
 
                         if (endTime + distance > ride.StartTime + buffer) continue;
 
@@ -109,7 +110,9 @@ namespace Challenge
 
                         var cost = Math.Max(distance, ride.StartTime - endTime);
                         cost += -endTime * 100;
-                        if (endTime + distance > ride.StartTime) cost += 15;
+
+                        var earliestArrival = ride.EndTime + distance;
+                        if (earliestArrival > ride.StartTime) cost += 10;
 
                         if (cost < minimalCost)
                         {
