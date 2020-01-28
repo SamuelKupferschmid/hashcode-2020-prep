@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using ShellProgressBar;
 
 namespace SolutionLibrary
 {
@@ -43,5 +44,7 @@ namespace SolutionLibrary
             Console.WriteLine($"writing ExecuteCached: {name} [{stream.Length / 1024 / 1024} MByte]");
             return result;
         }
+
+        public ProgressBar CreateProgressBar(int maxTicks, string message) => new ProgressBar(maxTicks, message);
     }
 }
