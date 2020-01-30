@@ -1,4 +1,4 @@
-import { readFile, Ride, Simulation, Vehicle, getScore, getDistance } from "./utils"
+import { readFile, writeTofile, Ride, Simulation, Vehicle, getScore, getDistance } from "./utils"
 import fs from 'fs'
 import _ from "lodash"
 
@@ -38,10 +38,13 @@ async function main (filename: string) {
 
 
 
-  // const output = fs.createWriteStream('../../output/' + filename.slice(0, -4) + '_evgeniya.out', {
-  //   flags: 'a' // 'a' for appending
-  // })
-  // writeTofile(output, input.length)
+  const output = fs.createWriteStream('../../output/' + filename.slice(0, -3) + `_${totalScore}` + '_evgeniya.out', {
+    flags: 'a' // 'a' for appending
+  })
+  for (const v of vehicles) {
+    writeTofile(output, v)
+  }
+  
 
   // console.log('Vehicles: ', vehicles)
   console.log('Score: ', totalScore)

@@ -101,7 +101,7 @@ export async function readFile (filename: string) {
   await getStream(data)
   return { sim, rides }
 }
-// export function writeTofile (output: fs.WriteStream, line: number | Slide) {
-//   if (line instanceof Slide) output.write(_.join(line.pictures, ' ') + '\n')
-//   else output.write(`${line}\n`)
-// }
+
+export function writeTofile (output: fs.WriteStream, line: Vehicle) {
+  output.write(`${line.rides.length} ${line.rides.join(' ')}`)
+}
