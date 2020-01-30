@@ -190,11 +190,11 @@ class SlideShow {
   }
 }
 
-main1('c_memorable_moments.txt')
+// main1('c_memorable_moments.txt')
 
-// const files = fs.readdirSync('./files');
-// for (const file of files) {
-//   main(file)
-// }
+const files = fs.readdirSync('../../input');
+for (const file of files) {
+  main(file)
+}
 
 
