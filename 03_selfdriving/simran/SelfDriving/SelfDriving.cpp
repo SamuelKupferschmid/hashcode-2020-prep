@@ -188,7 +188,7 @@ int solve() {
 				if (would_score == 0) continue; // can't do it in time
 					int wasted = car.would_need(rides[i]);
 				int when_would_finish = car.when + wasted + rides[i].length();
-				if (when_would_finish <= T * 0.98) wasted += far[i] / 15;
+				if (when_would_finish <= T * 0.98) wasted += far[i] / 15; //penalty is added 
 				best = min(best, { wasted, i });
 			}
 			if (best.first == INT_MAX) continue;
