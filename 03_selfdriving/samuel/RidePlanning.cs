@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Dynamic;
 using System.Linq;
 using SolutionLibrary;
+using SolutionLibrary.Collections;
 
 namespace Challenge
 {
@@ -53,21 +55,80 @@ namespace Challenge
 
             for(int i = 0; i < _vehicleCount;i++) vehicleRides[i] = new List<int>();
 
-            foreach (var ride in rides)
-            {
-                var buffer = ride.Duration - ride.Distance;
-                for (int i = 0; i < _vehicleCount; i++)
+            var initialSchedule = Enumerable.Range(0, _vehicleCount)
+                .Select(i => new Schedule
                 {
-                    var vehDist = ride.StartPos.Distance(vehicleEndPos[i]);
-                    var delay = vehDist - vehicleEndTime[i] - ride.StartTime;
-                    if (delay >= 0 && delay <= buffer)
-                    {
-                        score += ride.Distance;
-                        vehicleEndPos[i] = ride.EndPos;
-                        vehicleEndTime[i] = ride.StartTime + delay + ride.Distance;
+                    VehicleIndex = i,
+                    RideIndex = -1,
+                    Cost = -1,
+                });
+            var queue = new PriorityQueue<Schedule>(initialSchedule,(a, b) => b.Cost - a.Cost);
 
-                        if(delay <= 0) score += _bonus;
-                        break;
+            var assignedRides = new HashSet<int>();
+
+            using (var progress = CreateProgressBar(_vehicleCount, "Assign Rides"))
+            {
+
+                while (queue.Any())
+                {
+                    var schedule = queue.Dequeue();
+
+                    var endTime = vehicleEndTime[schedule.VehicleIndex];
+                    var endPosition = vehicleEndPos[schedule.VehicleIndex];
+
+                    if (schedule.RideIndex >= 0 && !assignedRides.Contains(schedule.RideIndex))
+                    {
+                        assignedRides.Add(schedule.RideIndex);
+                        var ride = rides[schedule.RideIndex];
+                        var arrTime = Math.Max(endTime + (endPosition.Distance(ride.StartPos)), ride.StartTime);
+
+                        if (arrTime == ride.StartTime) score += _bonus;
+
+                        score += ride.Distance;
+
+                        endPosition = ride.StartPos;
+                        endTime = arrTime + ride.Distance;
+
+                        vehicleRides[schedule.VehicleIndex].Add(ride.Index);
+                        progress.Tick(assignedRides.Count,score.ToString());
+                    }
+
+                    var minimalCost = int.MaxValue;
+                    var bestRideIndex = -1;
+
+                    for (int i = schedule.RideIndex + 1; i < _ridesCount; i++)
+                    {
+                        var ride = rides[i];
+                        var distance = ride.StartPos.Distance(endPosition);
+
+                        var buffer = ride.EndTime - ride.Distance;
+
+                        if (endTime + distance > ride.StartTime + buffer) continue;
+
+                        // optimal solution already found
+                        if (minimalCost < ride.StartTime - endTime) break;
+
+                        var cost = Math.Max(distance, ride.StartTime - endTime);
+                        cost += -endTime * 100;
+
+                        var earliestArrival = ride.EndTime + distance;
+                        if (earliestArrival > ride.StartTime) cost += 10;
+
+                        if (cost < minimalCost)
+                        {
+                            minimalCost = cost;
+                            bestRideIndex = i;
+                        }
+                    }
+
+                    if (bestRideIndex >= 0)
+                    {
+                        queue.Enqueue(new Schedule
+                        {
+                            VehicleIndex = schedule.VehicleIndex,
+                            Cost = minimalCost,
+                            RideIndex = bestRideIndex,
+                        });
                     }
                 }
             }
@@ -81,5 +142,12 @@ namespace Challenge
 
             return (score, output);
         }
+    }
+
+    public class Schedule
+    {
+        public int VehicleIndex { get; set; }
+        public int RideIndex { get; set; }
+        public int Cost { get; set; }
     }
 }
