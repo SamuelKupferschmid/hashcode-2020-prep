@@ -25,6 +25,9 @@ vector<vector<int>> output;
 int super;
 string outputPath;
 
+
+
+
 int dist(const pair<int, int> & a, const pair<int, int> & b) {
 	return abs(a.first - b.first) + abs(a.second - b.second);
 }
@@ -141,6 +144,15 @@ void createOutputFile()
 
 
 }
+
+/*
+ In a loop , greedily add a single ride for every car, always minimizing the wasted time ie
+ time from now (when a car has just finished a previous ride) to the moment when the car will start a new ride with a passenger.
+ There are a few long rides that have destinations far away from any start of a ride, so a car going there must waste a lot of time going back — 
+ unless the process is almost over (time close to T), because then there will be no extra waste time. So we need to add some extra penalty based on the 
+ length from the destination to the closest start of some other ride.
+
+*/
 
 int solve() {
 
