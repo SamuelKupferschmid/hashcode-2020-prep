@@ -355,3 +355,8 @@ MigrationBackup/
 
 # evgeniya files
 02_slideshow/evgeniya/src/files
+
+# mateusz files
+02_slideshow/mateusz/.vscode/launch.json
+02_slideshow/mateusz/doc/hashcode2019_qualification_task.pdf
+.vscode/launch.json

@@ -1,0 +1,22 @@
+// Configuration to run python scripts from Visual Studio Code
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            // selfdriving
+            "args": ["a_example.in"]
+            // "args": ["b_should_be_easy.in"]
+            // "args": ["c_no_hurry.in"]
+            // "args": ["d_metropolis.in"]
+            // "args": ["e_high_bonus.in"]            
+        }
+    ]
+}
