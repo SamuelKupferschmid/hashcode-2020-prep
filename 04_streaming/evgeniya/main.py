@@ -73,6 +73,7 @@ def solve(filename):
         for c in caches_used:
             file.write(str(c.id) + ' ' + ' '.join([str(v) for v in c.videos.keys()]) + '\n')
 
+# solve('example.in')
 # solve('me_at_the_zoo.in')
 # solve('trending_today.in')
 # solve('videos_worth_spreading.in')
