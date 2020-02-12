@@ -1,0 +1,222 @@
+import libs
+
+SEPARATOR = ":"
+
+class Solution: 
+    def __init__(self, problem):
+        self.problem = problem
+
+        # we rank videos based on potential savings directly proportional to number of requests
+        # and inversly proportional to size and latency - the smaller the better
+        # but at the begin we are not able to figure out latencies, we don't know yet to which cache server we will be connected
+        # we have rely on size and number of reps
+        # we can actually add one more metric - on how many cache servers do we have to place videos -> the more the worse
+        # question?? shall we re-rank everytime we put videos inside cache servers? 
+        # for example when there is no more space for them?
+        self.videos_rank = {}
+
+        # simple struct video -> min number of cache servers - list of sets 
+        self.video_to_cache_server = {}
+
+        # maximum cache server clusters which we have to encounter, ie to narrow to smallest possible sets
+        # here we also have to convert from set to string and vice versa
+        # its a mapping for each video and respective endpoints
+        self.cache_server_clusters = {}
+    
+    def count_score(self):
+        total_requests = 0
+        total_save = 0
+        final_score = 0
+
+        for request in self.problem.requests:
+            video_id = request.video_id
+            endpoint_id = request.endpoint_id
+            requests_no = request.requests_no
+
+            endpoint = self.problem.endpoints[endpoint_id]
+
+            latency = []
+            latency.append(endpoint.latency)
+
+            for k in endpoint.cache_servers.keys():
+                cs = self.problem.cache_servers[k]    
+
+                if video_id in cs.videos:
+                    latency.append(endpoint.cache_servers[k])
+            
+            min_latency = min(latency)
+            save_per_request = endpoint.latency - min_latency
+            save_per_description = requests_no * save_per_request
+            
+            total_requests += requests_no
+            total_save += save_per_description
+
+        final_score = total_save / total_requests
+        final_score *= 1000
+        
+        return int(final_score)
+
+    def string_to_set(self, str_key):
+        set_key = set(int(x) for x in str_key.split(SEPARATOR))
+        return set_key
+
+    def set_to_string(self, set_key):
+        sorted_set = sorted(set_key)
+        str_key = SEPARATOR.join(str(x) for x in sorted_set)
+        return str_key
+
+    def map_videos_to_cache(self):
+        # iterate through all videos
+        for req in self.problem.requests:
+            video_id = req.video_id
+            endpoint_id = req.endpoint_id
+            requests_no = req.requests_no
+
+            endpoint = self.problem.endpoints[endpoint_id]
+            cache_server_keys = set(endpoint.cache_servers.keys())
+
+            if video_id not in self.video_to_cache_server.keys():
+                self.video_to_cache_server[video_id] = [0, {}]
+                
+                # if first one we can initiate here 
+                # at least one cache server
+                # and first set is on the first location
+                self.video_to_cache_server[video_id][0] = 1
+                k = self.set_to_string(cache_server_keys) 
+                self.video_to_cache_server[video_id][1].update( {k: 1} )
+            else:
+                # mapping = self.video_to_cache_server[video_id]
+                
+                common = False
+
+                # we iterate through each key set already present if one of the values repeats with that particular one
+                # we increase that one by one
+                # at the end minimum number of cache servers needed should be all with values different than 0
+                # we start with ordered keys by value from higher to lower
+                for k in sorted(self.video_to_cache_server[video_id][1], key=self.video_to_cache_server[video_id][1].get, reverse=True):
+                    # first split a key into a set of integers
+                    # but do we have to convert them to integers really? I think yes as we will be sorting them back 
+                    key_set = self.string_to_set(k)
+
+                    # if we have a commont part increase that by one key set by one 
+                    # and set the flag to True if it even makes any difference now
+                    if len(cache_server_keys & key_set) > 0:
+                        # we can increase it only for the first match in given iteration
+                        if not common:
+                            self.video_to_cache_server[video_id][1][k] += 1
+                        cache_server_keys = cache_server_keys - key_set
+                        
+                        common = True
+
+                # if there were some reminders from cache_server_keys we add them at the end
+                # and if previously we didn't find any common part we increase this one by 1 because it's a separate family
+                if len(cache_server_keys) > 0:
+                    occur = 0
+                    if not common:
+                        occur = 1
+
+                    k = self.set_to_string(cache_server_keys)
+                    self.video_to_cache_server[video_id][1].update( {k: occur} )
+
+                # count how many values are above 0 and store it in first variable
+                count = [v for v in self.video_to_cache_server[video_id][1].values() if v > 0]
+                minimum_count = len(count)
+                self.video_to_cache_server[video_id][0] = minimum_count
+
+        # for vk in sorted(self.video_to_cache_server.keys()):
+        #     print("Video %d Cache Servers %d" %(vk, self.video_to_cache_server[vk][0]))
+        #     for key_set in sorted(self.video_to_cache_server[vk][1], key=self.video_to_cache_server[vk][1].get, reverse=True):
+        #         print("%s -> %d" %(key_set, self.video_to_cache_server[vk][1][key_set]))
+
+    def create_cache_clusters(self):
+        # iterate through all videos
+        for req in self.problem.requests:
+            video_id = req.video_id
+            endpoint_id = req.endpoint_id
+            requests_no = req.requests_no
+
+            endpoint = self.problem.endpoints[endpoint_id]
+            cache_server_keys = set(endpoint.cache_servers.keys())
+    
+            if video_id not in self.cache_server_clusters.keys():
+                # this is a simple structure than in mapping, here we are only interested in exclusive sets, and how often each set if pinged
+                # self.cache_server_clusters[video_id] = {}
+                
+                # initialize with first one
+                k = self.set_to_string(cache_server_keys) 
+                self.cache_server_clusters[video_id] = { k: 1 }
+            else:
+                # we iterate through each existing cluster and we create new ones with specific keys and values
+                new_clusters = {}
+                for k in sorted(self.cache_server_clusters[video_id], key=self.cache_server_clusters[video_id].get, reverse=True):
+                    # first let's convert key to keys_set
+                    # after that we have 3 possibilities: A&B, A-B, B-A
+                    key_set = self.string_to_set(k)
+                    current_value = self.cache_server_clusters[video_id][k]
+
+                    set1 = cache_server_keys & key_set
+                    set2 = key_set - cache_server_keys
+                    set3 = cache_server_keys - key_set
+                    
+                    if len(set1) > 0:
+                        key1 = self.set_to_string(set1)
+                        new_clusters[key1] = current_value + 1
+                    
+                    if len(set2) > 0:
+                        key2 = self.set_to_string(set2)
+                        new_clusters[key2] = current_value
+
+                    cache_server_keys = set3
+                
+                # first occurence of this set if it even exist
+                if len(cache_server_keys) > 0:
+                    key3 = self.set_to_string(cache_server_keys)
+                    new_clusters[key3] = 1
+
+                # update reference with new clusters
+                self.cache_server_clusters[video_id] = new_clusters
+        
+        for v in sorted(self.cache_server_clusters.keys()):
+            print("Video %d" %(v))
+            for k in sorted(self.cache_server_clusters[v], key=self.cache_server_clusters[v].get, reverse=True):
+                print("%s -> %d" %(k, self.cache_server_clusters[v][k]))
+
+
+
+
+
+
+    def rank_videos(self):
+        # iterate through each description and count potential saving for each description 
+        for req in self.problem.requests:
+            video_id = req.video_id
+            endpoint_id = req.endpoint_id
+            requests_no = req.requests_no
+            video_size = self.problem.video_sizes[video_id]
+
+            # find how many different cache servers are minimum to cover
+            # iterate through each cache server connected to each endpoints
+            if video_id not in self.videos_rank.keys():
+                self.videos_rank[video_id] = 0
+
+            req_rank = requests_no / video_size
+
+            if video_id not in self.videos_rank.keys():
+                self.videos_rank[video_id] = 0
+
+            self.videos_rank[video_id] += req_rank
+
+        # once we have all videos initially ranked we have to take under consideration on how many servers they are located
+        for video_id in self.videos_rank.keys():
+            self.videos_rank[video_id] /= self.video_to_cache_server[video_id][0]
+
+        # ok so now we have sorted videos, plenty of them have weight 0 and for sure should be taken out, some others 
+        # should be 
+        for k in sorted(self.videos_rank, key=self.videos_rank.get, reverse=True):
+            print("Video %d -> Rank %d" %(k, self.videos_rank[k]))
+        
+
+            
+
+
+
