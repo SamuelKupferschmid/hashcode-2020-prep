@@ -22,6 +22,9 @@ class Solution:
         # here we also have to convert from set to string and vice versa
         # its a mapping for each video and respective endpoints
         self.cache_server_clusters = {}
+
+        # simple structure to track expected vs actual distribution of videos -> thi may simplify a video_to_cache_server structure
+        self.video_distribution = {}
     
     def count_score(self):
         total_requests = 0
@@ -140,8 +143,6 @@ class Solution:
     
             if video_id not in self.cache_server_clusters.keys():
                 # this is a simple structure than in mapping, here we are only interested in exclusive sets, and how often each set if pinged
-                # self.cache_server_clusters[video_id] = {}
-                
                 # initialize with first one
                 k = self.set_to_string(cache_server_keys) 
                 self.cache_server_clusters[video_id] = { k: 1 }
@@ -176,15 +177,10 @@ class Solution:
                 # update reference with new clusters
                 self.cache_server_clusters[video_id] = new_clusters
         
-        for v in sorted(self.cache_server_clusters.keys()):
-            print("Video %d" %(v))
-            for k in sorted(self.cache_server_clusters[v], key=self.cache_server_clusters[v].get, reverse=True):
-                print("%s -> %d" %(k, self.cache_server_clusters[v][k]))
-
-
-
-
-
+        # for v in sorted(self.cache_server_clusters.keys()):
+        #     print("Video %d" %(v))
+        #     for k in sorted(self.cache_server_clusters[v], key=self.cache_server_clusters[v].get, reverse=True):
+        #         print("%s -> %d" %(k, self.cache_server_clusters[v][k]))
 
     def rank_videos(self):
         # iterate through each description and count potential saving for each description 
@@ -212,11 +208,58 @@ class Solution:
 
         # ok so now we have sorted videos, plenty of them have weight 0 and for sure should be taken out, some others 
         # should be 
-        for k in sorted(self.videos_rank, key=self.videos_rank.get, reverse=True):
-            print("Video %d -> Rank %d" %(k, self.videos_rank[k]))
+        # for k in sorted(self.videos_rank, key=self.videos_rank.get, reverse=True):
+        #     print("Video %d -> Rank %d" %(k, self.videos_rank[k]))
         
+    def find_solution(self):
+        # Algorithm 
+        # - iterate from top to bottom with ranked videos
+        # - in this simple version we are not running re-ranking, which means we may not get an optimal solution
+        # - we add videos as much as we have place on cache servers
+        # - once we reach specific point we need to look for optimal solution with recursion for a moment we just go down the line
 
-            
+        # first iterate through videos
+        for v in sorted(self.videos_rank, key=self.videos_rank.get, reverse=True):
+            # now iterate through videos and check how many cache servers we have to visit 
+            # and from each of these cache server go with clusters with higher number
 
+            number_of_cache_servers = self.video_to_cache_server[v][0]
+            v_size = problem.video_sizes[v]
+
+            # we go through each larger group of sets
+            # for each of such group we have to have at least one entry
+            for k1 in sorted(self.video_to_cache_server[v][1], key=self.video_to_cache_server[v][1].get, reverse=True):
+                # if we reach end of > 0 slots we have distributed inside 'premium' slots
+                set1 = self.string_to_set(k1)
+
+                # now we go down the list of all ranked cache servers from top to bottom
+                # keep in mind set2 may have more than one entry, but we just need a one entry
+                for k2 in sorted(self.cache_server_clusters[v], key=self.cache_server_clusters[v].get, reverse=True):
+                    set2 = self.string_to_set(k2)
+
+                    for cs in set2:
+                        if (cs in set1):
+                            cache_server = problem.cache_servers[cs]
+
+                            # video will still make on this server
+                            # yuppi :)
+                            # no need to go further this loop
+                            if cache_server.size + v_size <= cache_server.capacity:
+                                cache_server.add_video(v, v_size)
+
+                                # we added video on the server so we can decrease number of expected servers
+                                # question is shall we add only on premium slots?
+                                # we should also track how many videos were added 
+                                number_of_cache_servers -= 1
+
+                                break
+
+                        # check if there is enough space still on that cache server
+                        # check if 
+
+                print("%s -> %d" %(key_set, self.video_to_cache_server[vk][1][key_set]))
+
+            self.video_to_cache_server[video_id][1]
+        self.cache_server_clusters = {}
 
 
