@@ -2,6 +2,16 @@ import sys
 import libs
 from datetime import datetime
 
+# to run from VS Code add following entries to launch.json in main folder
+# // 04 streaming
+# "args": ["kittens.in", "/04_streaming"]
+# // "args": ["me_at_the_zoo.in", "/04_streaming"]
+# // "args": ["trending_today.in", "/04_streaming"]
+# // "args": ["videos_worth_spreading.in", "/04_streaming"]
+
+# to run from command line go to specific folder and then just run with file name 
+# python3 main.py kittens.in
+
 def main():
     # read input parameters
     if len(sys.argv) < 2:
@@ -64,8 +74,15 @@ def main():
     print("Find Solution Premium Only", current_time)
     solution.find_solution_premium_only()
 
+    final_score = int(solution.count_score())
     print("Final Score %s: %d" %(my_file, solution.count_score()))
 
+    # v01 - premium spots only
+    # v01a - copy of description requests - should be the same score as 01
+    # v02 - recursion to accomodate blank spaces
+    suffix = "mateusz_v01"
+
+    io.write_output(problem, final_score, suffix)
 
 if __name__ == "__main__":
     main()

@@ -62,6 +62,24 @@ class IO:
         return problem
 
 
-    def write_output(self, problem):
-        print("bar")
+    def write_output(self, problem, score, suffix='mateusz'):
+        new_file_name = self.file_name.replace('.in', '')
+        f = open(self.problem_folder + '/output/' + new_file_name + '_' + str(score) + '_' + suffix + '.out', "w")
 
+        cache_servers_count = 0
+        for k in problem.cache_servers.keys():
+            if problem.cache_servers[k].size > 0:
+                cache_servers_count += 1
+        
+        f.write(str(cache_servers_count) + '\n')
+        for k in problem.cache_servers.keys():
+            cache_server = problem.cache_servers[k]
+            if cache_server.size > 0:
+                sorted_set = sorted(cache_server.videos)
+                str_videos = ' '.join(str(x) for x in sorted_set)
+                str_final = str(k) + ' ' + str_videos + '\n'
+                f.write(str_final)
+
+
+        f.close()
+    
