@@ -1,5 +1,6 @@
 import sys
 import libs
+from datetime import datetime
 
 def main():
     # read input parameters
@@ -42,9 +43,26 @@ def main():
     #     print(cs.videos)
 
     solution = libs.Solution(problem)
+    
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print("Map videos to cache", current_time)
     solution.map_videos_to_cache()
+
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print("Create Cache Clusters", current_time)
     solution.create_cache_clusters()
+
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print("Rank Videos", current_time)
     solution.rank_videos()
+
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    print("Find Solution Premium Only", current_time)
+    solution.find_solution_premium_only()
 
     print("Final Score %s: %d" %(my_file, solution.count_score()))
 

@@ -62,6 +62,6 @@ class IO:
         return problem
 
 
-    def write_output(self):
+    def write_output(self, problem):
         print("bar")
 
