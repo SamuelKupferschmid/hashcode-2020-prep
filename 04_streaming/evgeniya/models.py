@@ -17,6 +17,8 @@ class Endpoint:
     def __init__(self, id, lat_to_DC):
         self.id = id
         self.lat_to_DC = lat_to_DC
+        self.caches = {}
+        self.requests = {}
 
 
 class Cache:
