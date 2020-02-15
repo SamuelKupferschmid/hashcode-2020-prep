@@ -64,7 +64,7 @@ namespace SolutionLibrary
             var bestOutput = Directory.GetFiles(outputFolder)
                 .Where(f => Path.GetFileName(f).StartsWith(Path.GetFileNameWithoutExtension(filename)))
                 .Select(s => s.Split('_'))
-                .Select(split => int.Parse(split[split.Length - 2]))
+                .Select(split => int.TryParse(split[split.Length - 2], out int val) ? val : 0)
                 .Concat(new []{0})
                 .Max();
 
@@ -78,7 +78,6 @@ namespace SolutionLibrary
             {
                 File.WriteAllLines(Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(filename)}_{score}_samuel"), output);
             }
-
 
             Console.ForegroundColor = diff > 0 ? ConsoleColor.Green : ConsoleColor.Red;
             Console.WriteLine($"score: {score:N0} [{(diff > 0 ? "+" : "-")}{diff:N0}] in {sw.ElapsedMilliseconds / 1000} seconds");
