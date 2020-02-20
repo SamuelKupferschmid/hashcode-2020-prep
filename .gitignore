@@ -355,6 +355,9 @@ MigrationBackup/
 
 # evgeniya files
 02_slideshow/evgeniya/src/files
+.DS_Store
+.idea/
+
 
 # mateusz files
 02_slideshow/mateusz/.vscode/launch.json
