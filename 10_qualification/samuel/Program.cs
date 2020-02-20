@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using SolutionLibrary;
 using SolutionLibrary.Collections;
 
@@ -24,7 +26,7 @@ namespace Challenge
             {
                 Config = new Configuration
                 {
-
+                    SignupScoreDay = 5
                 };
             }
 
@@ -47,16 +49,23 @@ namespace Challenge
                 var libSignupDays = new int[libCount];
                 var libRentLimit = new int[libCount];
 
+                var booksLibraries = books.Select(_ => new List<Library>()).ToList();
                 
 
                 var libraries = new List<Library>();
+
+                double BookScore(Book b)
+                {
+                    return b.Score * b.Rarity * b.Rarity;
+                }
 
                 for (int i = 0; i < libCount; i++)
                 {
                     ints = input[lineIndex++].SplitInts();
 
-                    var libBooks = input[lineIndex++].SplitInts().Select(index => books[index]);
-                    var booksQueue = new PriorityQueue<Book>(libBooks, (b1, b2) => b1.Score - b2.Score);
+                    var libBooks = input[lineIndex++].SplitInts().Select(index => books[index]).ToList();
+
+                    var booksQueue = new PriorityQueue<Book>(libBooks, (b1, b2) => (int) (BookScore(b1) - BookScore(b2)));
 
                     var lib = new Library
                     {
@@ -64,13 +73,25 @@ namespace Challenge
                         SignupDays = ints[1],
                         RentLimit = ints[2],
                         Books = booksQueue,
+                        SignupScore = -1
                     };
+
+                    foreach (var book in libBooks)
+                    {
+                        lib.ScoreSum += book.Score;
+                        booksLibraries[book.Index].Add(lib);
+                    }
 
 
                     libraries.Add(lib);
                 }
 
-                PriorityQueue<Library> signupQueue = new PriorityQueue<Library>(libraries, (library1, library2) => library1.SignupCost - library2.SignupCost );
+                for (int i = 0; i < bookCount; i++)
+                {
+                    books[i].Rarity = (double)libCount / booksLibraries[i].Count;
+                }
+
+                PriorityQueue<Library> signupQueue = new PriorityQueue<Library>(libraries, (library1, library2) =>  (library1.SignupScore.CompareTo(library2.SignupScore)));
 
                 var signedLibs = new List<Library>();
                 var scannedBooks = new HashSet<Book>();
@@ -78,6 +99,27 @@ namespace Challenge
                 var lastSignupCompletedAt = 0;
 
                 var score = 0;
+
+                void ValidateQueue(PriorityQueue<Library> queue)
+                {
+                    while (true)
+                    {
+                        var lib = queue.Peek();
+
+                        var score = lib.ScoreSum / (double)lib.SignupDays;
+
+                        if (score != lib.SignupScore)
+                        {
+                            queue.Dequeue();
+                            lib.SignupScore = score;
+                            queue.Enqueue(lib);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
 
                 for (int day = 0; day < days; day++)
                 {
@@ -106,6 +148,11 @@ namespace Challenge
                             
                             if (!scannedBooks.Contains(book))
                             {
+                                foreach (var l in booksLibraries[book.Index])
+                                {
+                                    l.ScoreSum -= book.Score;
+                                }
+
                                 scannedBooks.Add(book);
                                 lib.Scanned.Add(book);
                                 score += book.Score;
@@ -130,18 +177,15 @@ namespace Challenge
 
                 return (score, resultLines);
             }
-
-            public void ValidateQueue(PriorityQueue<Library> queue)
-            {
-                // recalculate
-            }
         }
 
         public class Library
         {
             public int Id { get; set; }
             public int SignupDays { get; set; }
-            public int SignupCost { get; set; }
+            public double SignupScore { get; set; }
+
+            public int ScoreSum { get; set; }
 
             public int SignupCompleteAt { get; set; }
 
@@ -158,11 +202,13 @@ namespace Challenge
             public int Index { get; set; }
 
             public int Score { get; set; }
+
+            public double Rarity { get; set; }
         }
 
         public class Configuration
         {
-
+            public int SignupScoreDay { get; set; }
         }
     }
 }
