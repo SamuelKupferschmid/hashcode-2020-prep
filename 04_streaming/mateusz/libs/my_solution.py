@@ -81,6 +81,7 @@ class Solution:
             endpoint = self.problem.endpoints[endpoint_id]
             cache_server_keys = set(endpoint.cache_servers.keys())
 
+            # HOTFIX
             # if there are no cache servers for this endpoint we can simple skip it
             if not len(cache_server_keys) > 0:
                 continue
@@ -296,10 +297,10 @@ class Solution:
 
                                 break
 
-        # for k in sorted(self.problem.cache_servers.keys()):
-        #     cache_server = self.problem.cache_servers[k]
-        #     print("Cache Server %d Size %d" %(k, cache_server.size))
-        #     print(cache_server.videos)
+        for k in sorted(self.problem.cache_servers.keys()):
+            cache_server = self.problem.cache_servers[k]
+            print("Cache Server %d Size %d" %(k, cache_server.size))
+            print(cache_server.videos)
 
 
 
