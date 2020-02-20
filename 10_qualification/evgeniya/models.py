@@ -12,11 +12,15 @@ class Book:
 
 
 class Library:
-    def __init__(self, id, signup_days, books, rate):
+    def __init__(self, id, n_books, signup_days, rate, books):
         self.id = id
+        self.n_books = n_books
         self.signup_days = signup_days
         self.books = books
         self.rate = rate
+        self.books_score = 0
+        self.rating = 0
+        self.books_sent_ids = []
 
 
 class Day:
