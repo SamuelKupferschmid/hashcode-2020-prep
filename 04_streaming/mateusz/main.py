@@ -80,6 +80,7 @@ def main():
     # v01 - premium spots only
     # v01a - copy of description requests - should be the same score as 01
     # v02 - recursion to accomodate blank spaces
+    # v03 - different ranking algorithm, square of some factors, what about latencies? should they also be taken under consideration
     suffix = "mateusz_v01"
 
     io.write_output(problem, final_score, suffix)
