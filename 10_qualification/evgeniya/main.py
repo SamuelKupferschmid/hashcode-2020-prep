@@ -18,6 +18,7 @@ def solve(filename):
 
 
     # with open(OUTPUT_DIR + filename[0:-3] + '_' + str(score) + '_evgeniya.out', 'a') as file:
+    #     file.truncate()
     #     file.write(str(len(caches_used)) + '\n')
     #     for c in caches_used:
     #         file.write(str(c.id) + ' ' + ' '.join([str(v) for v in c.videos.keys()]) + '\n')
