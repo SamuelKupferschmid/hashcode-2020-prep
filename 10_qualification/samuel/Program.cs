@@ -43,14 +43,15 @@ namespace Challenge
                 //var libBooks = new short[libCount, bookCount];
                 //return (0, new List<string>());
 
-                var books = input[lineIndex++].SplitInts().Select((val, index) => new Book { Index = index, Score = val}).ToList();
+                var books = input[lineIndex++].SplitInts().Select((val, index) => new Book {Index = index, Score = val})
+                    .ToList();
 
                 var unscannedLibBooks = new HashSet<int>[libCount];
                 var libSignupDays = new int[libCount];
                 var libRentLimit = new int[libCount];
 
                 var booksLibraries = books.Select(_ => new List<Library>()).ToList();
-                
+
 
                 var libraries = new List<Library>();
 
@@ -59,20 +60,22 @@ namespace Challenge
                     return b.Score * b.Rarity * b.Rarity;
                 }
 
+                var booksQueue = new PriorityQueue<Book>(books, (b1, b2) => (int) (BookScore(b1) - BookScore(b2)));
+
                 for (int i = 0; i < libCount; i++)
                 {
                     ints = input[lineIndex++].SplitInts();
 
                     var libBooks = input[lineIndex++].SplitInts().Select(index => books[index]).ToList();
 
-                    var booksQueue = new PriorityQueue<Book>(libBooks, (b1, b2) => (int) (BookScore(b1) - BookScore(b2)));
+
 
                     var lib = new Library
                     {
                         Id = i,
                         SignupDays = ints[1],
                         RentLimit = ints[2],
-                        Books = booksQueue,
+                        Books = libBooks.ToHashSet(),
                         SignupScore = -1
                     };
 
@@ -88,10 +91,11 @@ namespace Challenge
 
                 for (int i = 0; i < bookCount; i++)
                 {
-                    books[i].Rarity = (double)libCount / booksLibraries[i].Count;
+                    books[i].Rarity = (double) libCount / booksLibraries[i].Count;
                 }
 
-                PriorityQueue<Library> signupQueue = new PriorityQueue<Library>(libraries, (library1, library2) =>  (library1.SignupScore.CompareTo(library2.SignupScore)));
+                PriorityQueue<Library> signupQueue = new PriorityQueue<Library>(libraries,
+                    (library1, library2) => (library1.SignupScore.CompareTo(library2.SignupScore)));
 
                 var signedLibs = new List<Library>();
                 var scannedBooks = new HashSet<Book>();
@@ -106,7 +110,7 @@ namespace Challenge
                     {
                         var lib = queue.Peek();
 
-                        var score = lib.ScoreSum / (double)lib.SignupDays;
+                        var score = lib.ScoreSum / (double) lib.SignupDays;
 
                         if (score != lib.SignupScore)
                         {
@@ -121,62 +125,105 @@ namespace Challenge
                     }
                 }
 
-                for (int day = 0; day < days; day++)
+
+                using (var p = CreateProgressBar(days, "Days..."))
                 {
-                    // signup libraries
-                    if (lastSignupCompletedAt <= day && signupQueue.Any())
+
+                    for (int day = 0; day < days; day++)
                     {
-                        ValidateQueue(signupQueue);
-                        var next = signupQueue.Dequeue();
-
-                        lastSignupCompletedAt = day + next.SignupDays;
-                        next.SignupCompleteAt = lastSignupCompletedAt;
-
-                        signedLibs.Add(next);
-
-                        
-                    }
-
-
-                    //ship books
-                    foreach (var lib in signedLibs.Where(l => l.SignupCompleteAt < day))
-                    {
-                        var remaining = lib.RentLimit;
-                        while (remaining-- > 0 && lib.Books.Any())
+                        p.Tick(day, score.ToString());
+                        // signup libraries
+                        if (lastSignupCompletedAt <= day && signupQueue.Any())
                         {
-                            var book = lib.Books.Dequeue();
-                            
-                            if (!scannedBooks.Contains(book))
-                            {
-                                foreach (var l in booksLibraries[book.Index])
-                                {
-                                    l.ScoreSum -= book.Score;
-                                }
+                            ValidateQueue(signupQueue);
+                            var next = signupQueue.Dequeue();
 
-                                scannedBooks.Add(book);
-                                lib.Scanned.Add(book);
-                                score += book.Score;
+                            lastSignupCompletedAt = day + next.SignupDays;
+                            next.SignupCompleteAt = lastSignupCompletedAt;
+
+                            signedLibs.Add(next);
+
+
+                        }
+
+                        var dailyShipment = signedLibs.Where(l => l.SignupCompleteAt <= day).Select(l => new Shipment
+                        {
+                            RemainingSpace = l.RentLimit,
+                            Library = l
+                        }).ToList();
+
+                        var invalidBooks = new List<Book>();
+
+                        while (dailyShipment.Any() && booksQueue.Any())
+                        {
+                            var book = booksQueue.Dequeue();
+                            var maxIndex = -1;
+                            var maxRemaining = 0;
+
+                            for (int lib = 0; lib < dailyShipment.Count; lib++)
+                            {
+                                if (dailyShipment[lib].Library.Books.Contains(book))
+                                {
+                                    if (dailyShipment[lib].RemainingSpace > maxRemaining)
+                                    {
+                                        maxIndex = lib;
+                                        maxRemaining = dailyShipment[lib].RemainingSpace;
+                                    }
+                                }
                             }
+
+                            //in no library at the moment
+                            if (maxIndex == -1)
+                            {
+                                invalidBooks.Add(book);
+                            }
+                            else
+                            {
+                                var shipment = dailyShipment[maxIndex];
+                                shipment.RemainingSpace--;
+                                shipment.Library.Scanned.Add(book);
+                                score += book.Score;
+
+                                if (shipment.RemainingSpace == 0)
+                                {
+                                    dailyShipment.RemoveAt(maxIndex);
+                                }
+                                else if (shipment.RemainingSpace < 0)
+                                {
+
+                                }
+                            }
+                        }
+
+                        foreach (var invalidBook in invalidBooks)
+                        {
+                            booksQueue.Enqueue(invalidBook);
                         }
                     }
 
+
+                    var resultLines = new List<string>();
+
+                    signedLibs = signedLibs.Where(l => l.SignupCompleteAt <= days && l.Scanned.Any()).ToList();
+
+                    resultLines.Add(signedLibs.Count.ToString());
+
+                    foreach (var signedLib in signedLibs)
+                    {
+                        resultLines.Add(string.Join(' ', signedLib.Id, signedLib.Scanned.Count));
+                        resultLines.Add(string.Join(' ', signedLib.Scanned.Select(b => b.Index)));
+                    }
+
+                    return (score, resultLines);
                 }
-
-                
-                var resultLines = new List<string>();
-
-                signedLibs = signedLibs.Where(l => l.SignupCompleteAt <= days && l.Scanned.Any()).ToList();
-
-                resultLines.Add(signedLibs.Count.ToString());
-
-                foreach (var signedLib in signedLibs)
-                {
-                    resultLines.Add(string.Join(' ', signedLib.Id, signedLib.Scanned.Count));
-                    resultLines.Add(string.Join(' ', signedLib.Scanned.Select(b => b.Index)));
-                }
-
-                return (score, resultLines);
             }
+        }
+
+        public class Shipment
+        {
+            public int RemainingSpace { get; set; }
+
+            public Library Library { get; set; }
         }
 
         public class Library
@@ -189,7 +236,7 @@ namespace Challenge
 
             public int SignupCompleteAt { get; set; }
 
-            public PriorityQueue<Book> Books { get; set; }
+            public HashSet<Book> Books { get; set; }
 
             public List<Book> Scanned { get; set; } = new List<Book>();
 
