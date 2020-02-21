@@ -26,40 +26,15 @@ def main():
         io = libs.IO(my_file)
     
     problem = io.read_input()
-    
     solution = libs.Solution(problem)
-    
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print("Map videos to cache", current_time)
-    solution.map_videos_to_cache()
+    # solution.rank_libraries()
+    # solution.find_solution()
 
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print("Create Cache Clusters", current_time)
-    solution.create_cache_clusters()
+    solution.rank_libraries_len()
+    solution.find_solution_d()
 
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print("Rank Videos", current_time)
-    solution.rank_videos()
 
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    print("Find Solution Premium Only", current_time)
-    solution.find_solution_premium_only()
-
-    final_score = int(solution.count_score())
-    print("Final Score %s: %d" %(my_file, solution.count_score()))
-
-    # v01 - premium spots only
-    # v01a - copy of description requests - should be the same score as 01
-    # v02 - recursion to accomodate blank spaces
-    # v02a - add latency to figure out what is the best ranked cache server 
-    # v03 - different ranking algorithm, square of some factors, what about latencies? should they also be taken under consideration
-    suffix = "mateusz_v01"
-
-    io.write_output(problem, final_score, suffix)
+    io.write_output(problem, solution)
 
 if __name__ == "__main__":
     main()
